@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 streamlit
 langchain
 langchain-community
@@ -8,3 +8,4 @@ chromadb
 pypdf
 sentence-transformers
 python-dotenv
+requests
