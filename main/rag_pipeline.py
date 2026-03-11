@@ -7,9 +7,10 @@ from langchain_groq import ChatGroq
 from langchain_classic.chains import RetrievalQA
 from langchain_classic.prompts import PromptTemplate
 
-# Necessary for cloud deployment since vectorstore is ignored
+# For cloud loading
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 load_dotenv()
 
 # 1. Setup Embeddings
@@ -17,24 +18,25 @@ embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
-# 2. Load Vector Store - Updated to build from your 'docs' folder
-def initialize_vectordb():
-    # If vectorstore exists (local), use it. If not (cloud), build from docs.
-    if os.path.exists("./vectorstore") and os.listdir("./vectorstore"):
-        return Chroma(persist_directory="./vectorstore", embedding_function=embeddings)
-    else:
+# 2. Load Vector Store
+# 2. Load Vector Store
+def initialize_db():
+    if os.path.exists("./docs"):
         loader = PyPDFDirectoryLoader("./docs")
         docs = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        # SMALLER CHUNKS = More likely to get different files
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=50)
         splits = text_splitter.split_documents(docs)
         return Chroma.from_documents(documents=splits, embedding=embeddings)
+    return None
 
-vectordb = initialize_vectordb()
+vectordb = initialize_db()
 
-# 3. Setup Retriever
-retriever = vectordb.as_retriever(search_kwargs={"k": 5}) # Reduced k for cloud memory safety
+# 3. Setup Retriever - INCREASE K TO 20
+retriever = vectordb.as_retriever(search_kwargs={"k": 20}) 
 
-# 4. Initialize LLM (Groq Llama 3.1)
+
+# 4. Initialize LLM
 llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
     model_name="llama-3.1-8b-instant",
@@ -44,7 +46,6 @@ llm = ChatGroq(
 # 5. Refined Prompt
 template = """You are a helpful assistant. Use the following pieces of retrieved context to answer the question. 
 If the answer is not contained within the context, honestly state that you do not know. 
-Do not make up information outside of the provided context.
 
 Context:
 {context}
@@ -67,19 +68,15 @@ qa_chain = RetrievalQA.from_chain_type(
 )
 
 def ask(question):
-    # Use .invoke() for modern compatibility
     result = qa_chain.invoke({"query": question})
-
     answer = result["result"]
     source_docs = result["source_documents"]
-
-    # Extract unique source names/metadata
-    sources = list(set([doc.metadata.get("source", "unknown") for doc in source_docs]))
-
-    # Also return the retrieved text for frontend display
+    
+    # Extract filenames only (e.g., Handbook.pdf)
+    sources = list(set([os.path.basename(doc.metadata.get("source", "unknown")) for doc in source_docs]))
     chunks = [doc.page_content for doc in source_docs]
 
-    # Debug print: If answer is "I don't know", check if source_docs is empty
+    # Added your debug logic here:
     if "don't know" in answer.lower() or "do not know" in answer.lower():
         print(f"\n[DEBUG] Found {len(source_docs)} documents, but LLM couldn't find the answer in them.")
 
