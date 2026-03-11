@@ -19,5 +19,5 @@ __pycache__/
 vectorstore/
 .venv/
 __pycache__/
-*.pdf
+
 .env
