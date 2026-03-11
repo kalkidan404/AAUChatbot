@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.pyc
+.venv/
+.env
+# Ignore the vector database
+vectorstore/
+../vectorstore/
+
+# Ignore environment variables
+.env
+
+# Ignore python virtual environment
+.venv/
+__pycache__/
+vectorstore/
+.venv/
+__pycache__/
+*.pdf
+.env
