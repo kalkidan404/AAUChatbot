@@ -1,6 +1,6 @@
 
 import streamlit as st
-from rag_pipeline import get_answer
+from rag_pipeline import ask
 
 
 
@@ -12,7 +12,7 @@ st.set_page_config(page_title="AAU Assistant", layout="wide")
 @st.cache_resource
 def load_rag_logic():
     # If your get_answer function requires initialization, do it here
-    return get_answer
+    return ask
 
 rag_function = load_rag_logic()
 

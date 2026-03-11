@@ -7,6 +7,9 @@ from langchain_groq import ChatGroq
 from langchain_classic.chains import RetrievalQA
 from langchain_classic.prompts import PromptTemplate
 
+# Necessary for cloud deployment since vectorstore is ignored
+from langchain_community.document_loaders import PyPDFDirectoryLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 load_dotenv()
 
 # 1. Setup Embeddings
@@ -14,14 +17,22 @@ embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
-# 2. Load Vector Store
-vectordb = Chroma(
-    persist_directory="../vectorstore",
-    embedding_function=embeddings
-)
+# 2. Load Vector Store - Updated to build from your 'docs' folder
+def initialize_vectordb():
+    # If vectorstore exists (local), use it. If not (cloud), build from docs.
+    if os.path.exists("./vectorstore") and os.listdir("./vectorstore"):
+        return Chroma(persist_directory="./vectorstore", embedding_function=embeddings)
+    else:
+        loader = PyPDFDirectoryLoader("./docs")
+        docs = loader.load()
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        splits = text_splitter.split_documents(docs)
+        return Chroma.from_documents(documents=splits, embedding=embeddings)
+
+vectordb = initialize_vectordb()
 
 # 3. Setup Retriever
-retriever = vectordb.as_retriever(search_kwargs={"k": 50})
+retriever = vectordb.as_retriever(search_kwargs={"k": 5}) # Reduced k for cloud memory safety
 
 # 4. Initialize LLM (Groq Llama 3.1)
 llm = ChatGroq(
@@ -73,7 +84,3 @@ def ask(question):
         print(f"\n[DEBUG] Found {len(source_docs)} documents, but LLM couldn't find the answer in them.")
 
     return answer, sources, chunks
-
-# Example Usage:
-# response, docs, texts = ask("What is the main topic of the document?")
-# print(f"Answer: {response}\nSources: {docs}\nRetrieved Texts: {texts}")
