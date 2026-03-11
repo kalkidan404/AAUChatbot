@@ -22,14 +22,9 @@ embeddings = HuggingFaceEmbeddings(
 # 2. Load Vector Store
 def initialize_db():
     if os.path.exists("./docs"):
-        # Use a more aggressive glob to find EVERYTHING
-        loader = PyPDFDirectoryLoader("./docs", glob="**/[!.]*.pdf") 
+        loader = PyPDFDirectoryLoader("./docs")
         docs = loader.load()
-        
-        # Log which files were actually loaded
-        loaded_sources = list(set([d.metadata.get("source") for d in docs]))
-        print(f"[DEBUG] Successfully loaded pages from: {loaded_sources}")
-        
+        # SMALLER CHUNKS = More likely to get different files
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=100)
         splits = text_splitter.split_documents(docs)
         return Chroma.from_documents(documents=splits, embedding=embeddings)
